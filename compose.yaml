@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      DATA_DIR: /app/data
+      TRUST_PROXY: "1"
+      BACKUP_PASSPHRASE: ${BACKUP_PASSPHRASE:-}
+      SETUP_TOKEN: ${SETUP_TOKEN:?Set a private SETUP_TOKEN before starting}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - shop_data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+  caddy:
+    image: caddy:2-alpine
+    profiles: [public]
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+volumes:
+  shop_data:
+  caddy_data:
+  caddy_config:
