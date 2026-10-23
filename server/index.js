@@ -35,7 +35,8 @@ import {
   transferCredit,
   reverseAdjustment,
 } from "./operations.js";
-import { canonicalProof } from "./images.js";
+import { canonicalProof, canonicalSource } from "./images.js";
+import { extractEstimate } from "./estimate-ai.js";
 import { renderPdf } from "./pdf.js";
 import {
   snapshot,
@@ -117,6 +118,7 @@ if (mongoStore) app.use("/api", durableApi(mongoStore));
 app.get("/api/status", (req, res) =>
   res.json({
     needsSetup: !db.prepare("SELECT id FROM users LIMIT 1").get(),
+    photoReadingAvailable: Boolean(process.env.OPENAI_API_KEY),
     setupRequiresToken:
       process.env.NODE_ENV === "production" &&
       process.env.ALLOW_LOCAL_SETUP !== "1",
@@ -215,6 +217,53 @@ app.use("/api", (req, res, next) => {
   req.databaseVersion = databaseVersion;
   next();
 });
+// Read-only AI work must not hold the financial request queue during the network call.
+const scanUsage = new Map();
+app.post("/api/estimates/extract", async (req, res) => {
+  if (!process.env.OPENAI_API_KEY) {
+    return res
+      .status(503)
+      .json({
+        error:
+          "Photo reading is not configured. Ask the owner to set OPENAI_API_KEY privately in Render.",
+      });
+  }
+  const now = Date.now();
+  for (const [id, usage] of scanUsage)
+    if (!usage.active && now - usage.start > 3600000) scanUsage.delete(id);
+  const user = req.user.id;
+  const usage = scanUsage.get(user) || { start: now, count: 0, active: false };
+  if (usage.active || usage.count >= 20)
+    return res
+      .status(429)
+      .json({
+        error:
+          "Photo reading limit reached. Wait a while or enter items manually.",
+      });
+  const catalog = db
+    .prepare("SELECT items FROM documents ORDER BY id DESC LIMIT 100")
+    .all()
+    .flatMap((d) => JSON.parse(d.items).map((i) => i.name));
+  usage.active = true;
+  usage.count++;
+  scanUsage.set(user, usage);
+  req.releaseProjection?.();
+  try {
+    const result = await extractEstimate({
+      image: req.body.image,
+      mode: req.body.tax_mode,
+      catalog: [...new Set(catalog)],
+    });
+    res.json({
+      ...result,
+      source_photo: await canonicalSource(req.body.image),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  } finally {
+    usage.active = false;
+  }
+});
 app.post("/api/logout", (req, res) => {
   const t = (req.headers.cookie || "").match(/(?:^|;\s*)session=([^;]+)/)?.[1];
   if (t) db.prepare("DELETE FROM sessions WHERE token=?").run(digest(t));
@@ -266,6 +315,7 @@ app.get("/api/state", (req, res) => {
     payments: db
       .prepare("SELECT * FROM payments ORDER BY id DESC LIMIT 250")
       .all(),
+    photoReadingAvailable: Boolean(process.env.OPENAI_API_KEY),
     adjustments: db.prepare("SELECT * FROM adjustments ORDER BY id DESC").all(),
     adjustment_reversals: db
       .prepare("SELECT * FROM adjustment_reversals")
@@ -363,6 +413,7 @@ app.post("/api/documents", async (req, res) => {
     const result = calculateItems(p.items, p.tax_mode);
     p.signature = await canonicalProof(p.signature);
     p.photo = await canonicalProof(p.photo);
+    p.source_photo = await canonicalSource(p.source_photo);
     if (
       !db
         .prepare("SELECT id FROM users WHERE id=? AND active=1")
@@ -385,6 +436,7 @@ app.post("/api/documents", async (req, res) => {
         previous.items !== JSON.stringify(result.items) ||
         previous.signature !== (p.signature || null) ||
         previous.photo !== (p.photo || null) ||
+        previous.source_photo !== (p.source_photo || null) ||
         previous.notes !== String(p.notes || "") ||
         previous.due_date !== (p.due_date || null)
       )
@@ -409,7 +461,7 @@ app.post("/api/documents", async (req, res) => {
     const id = transaction(db, () => {
       const r = db
         .prepare(
-          "INSERT INTO documents(kind,party_id,tax_mode,items,total,signature,photo,notes,created_by,request_id,due_date,party_snapshot,shop_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO documents(kind,party_id,tax_mode,items,total,signature,photo,notes,created_by,request_id,due_date,party_snapshot,shop_snapshot,source_photo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           p.kind,
@@ -426,6 +478,7 @@ app.post("/api/documents", async (req, res) => {
           JSON.stringify(party),
           db.prepare("SELECT value FROM settings WHERE key='shop'").get()
             ?.value || JSON.stringify({ name: "Sunil Enterprises" }),
+          p.source_photo || null,
         );
       audit(db, req.user.id, "create", "document", Number(r.lastInsertRowid), {
         total: result.total,

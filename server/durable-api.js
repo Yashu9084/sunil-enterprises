@@ -24,17 +24,22 @@ export function durableApi(store) {
     };
     try {
       await store.refresh();
-    } catch {
+    } catch (error) {
+      console.error("Ledger refresh failed", error.name, error.code || "");
       unlock();
-      res
-        .status(503)
-        .json({
-          error:
-            "Shop database is unavailable. Nothing was saved. Please try again shortly.",
-        });
+      res.status(503).json({
+        error:
+          "Shop database is unavailable. Nothing was saved. Please try again shortly.",
+      });
       return;
     }
-    if (["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    const extraction =
+      req.method === "POST" &&
+      req.path.toLowerCase().replace(/\/+$/, "") === "/estimates/extract";
+    if (["GET", "HEAD", "OPTIONS"].includes(req.method) || extraction) {
+      // The extraction route copies its authenticated context before releasing
+      // this read lock. No ledger access is allowed after that release.
+      if (extraction) req.releaseProjection = unlock;
       res.once("finish", unlock);
       res.once("close", unlock);
       next();

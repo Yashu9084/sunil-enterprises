@@ -24,6 +24,12 @@ npm run test:mongo
 
 The browser test uses `/usr/bin/chromium` if available, otherwise a Playwright browser (`npx playwright install chromium`). It creates and removes its own test data and server. `PLAYWRIGHT_USE_BUNDLED=1` forces the bundled browser. Runtime records live in ignored `data/shop.sqlite`, or the persistent `DATA_DIR` you configure. Do not put real records in Git.
 
+## Photo entry and readable estimates
+
+[Photo reader setup and review guide](docs/PHOTO_READER.md). Upload a handwritten Hindi/English spare-parts list, read it with OpenAI, correct uncertain values, and explicitly check every line before adding items to the estimate. Part numbers are preserved; missing prices stay blank. Arithmetic and page-total mismatches are highlighted. No AI output creates a financial record automatically, and a source-list photo does not replace signed customer proof.
+
+Signed PDFs use a large ruled quantity/item/rate/amount table, aligned amounts, wrapped Hindi names, repeated table headings on continuation pages and a prominent total. Scanned source photos remain available separately for reference.
+
 ## Shop workflow
 
 1. Add customers and suppliers. A party can be both. Store their phone, address, GSTIN and optional bank/UPI details.

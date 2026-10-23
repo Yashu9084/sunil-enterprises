@@ -71,6 +71,7 @@ export function migrateOperations(db) {
   add("payments", "flow", "TEXT NOT NULL DEFAULT 'settlement'");
   add("payments", "allocation_request", "TEXT NOT NULL DEFAULT '{}'");
   add("documents", "due_date", "TEXT");
+  add("documents", "source_photo", "TEXT");
   add("parties", "address", "TEXT NOT NULL DEFAULT ''");
   add("parties", "payment_details", "TEXT NOT NULL DEFAULT '{}'");
   add("payments", "method", "TEXT NOT NULL DEFAULT 'upi'");

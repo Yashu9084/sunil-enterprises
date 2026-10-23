@@ -15,7 +15,8 @@
     "backup:check": "node scripts/backup.mjs check",
     "backup:restore": "node scripts/backup.mjs restore",
     "test:container": "node scripts/container-smoke.mjs",
-    "test:mongo": "node scripts/mongo-tests.mjs"
+    "test:mongo": "node scripts/mongo-tests.mjs",
+    "test:photo-browser": "npm run build && node scripts/photo-browser-smoke.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",

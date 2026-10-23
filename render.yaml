@@ -22,5 +22,7 @@ services:
         value: sunil_enterprises
       - key: MONGODB_URI
         sync: false
+      - key: OPENAI_VISION_MODEL
+        value: gpt-4.1
       - key: SETUP_TOKEN
         generateValue: true

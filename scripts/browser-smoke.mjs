@@ -44,6 +44,7 @@ try {
   await page.getByLabel("Quantity", { exact: true }).fill("10");
   await page.getByLabel("Unit price in rupees").fill("250");
   const canvas = page.locator("canvas");
+  await canvas.scrollIntoViewIfNeeded();
   const b = await canvas.boundingBox();
   await page.mouse.move(b.x + 50, b.y + 40);
   await page.mouse.down();

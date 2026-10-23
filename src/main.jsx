@@ -25,6 +25,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./style.css";
+import { PhotoItems } from "./PhotoItems.jsx";
 import { tr, hindi } from "./i18n.js";
 import { money, date, paise, api, sharePdf } from "./lib.js";
 import {
@@ -1543,23 +1544,34 @@ function App() {
                     </small>
                   </div>
                 </div>
-                <table>
+                <table className="estimate-sheet">
+                  <colgroup>
+                    <col style={{ width: "12%" }} />
+                    <col style={{ width: "40%" }} />
+                    <col style={{ width: "24%" }} />
+                    <col style={{ width: "24%" }} />
+                  </colgroup>
                   <thead>
                     <tr>
-                      <th>{tr("Item")}</th>
-                      <th>{tr("Qty")}</th>
-                      <th>{tr("Price")}</th>
-                      <th>GST</th>
+                      <th className="right">{tr("Qty")}</th>
+                      <th>{t("Item / part", "सामान / पार्ट")}</th>
+                      <th className="right">{t("Rate", "भाव")}</th>
                       <th className="right">{tr("Total")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {modal.doc.items.map((i, n) => (
                       <tr key={n}>
-                        <td>{i.name}</td>
-                        <td>{i.qty}</td>
-                        <td>{money(i.price)}</td>
-                        <td>{i.gst}%</td>
+                        <td className="right">{i.qty}</td>
+                        <td>
+                          {i.name}
+                          {modal.doc.tax_mode === "gst" && (
+                            <small>
+                              GST {i.gst}% · {money(i.tax)}
+                            </small>
+                          )}
+                        </td>
+                        <td className="right">{money(i.price)}</td>
                         <td className="right">{money(i.total)}</td>
                       </tr>
                     ))}
@@ -1589,6 +1601,24 @@ function App() {
                       className="proof"
                       alt="Signed paper estimate"
                       src={modal.doc.photo}
+                    />
+                  </>
+                )}
+                {modal.doc.source_photo && (
+                  <>
+                    <h3>
+                      {t(
+                        "Source list — reference only",
+                        "मूल सूची — केवल संदर्भ",
+                      )}
+                    </h3>
+                    <img
+                      className="proof"
+                      src={modal.doc.source_photo}
+                      alt={t(
+                        "Source list, not customer signature",
+                        "मूल सूची, ग्राहक के हस्ताक्षर नहीं",
+                      )}
                     />
                   </>
                 )}
@@ -1724,7 +1754,8 @@ function DocumentForm({
       draft?.items || [{ name: "", qty: 1, price: "", gst: 18 }],
     ),
     [signature, setSignature] = useState(null),
-    [photo, setPhoto] = useState(null);
+    [photo, setPhoto] = useState(null),
+    [sourcePhoto, setSourcePhoto] = useState(null);
   useEffect(() => {
     sessionStorage.setItem(
       draftKey,
@@ -1766,6 +1797,7 @@ function DocumentForm({
             tax_mode: mode,
             signature,
             photo,
+            source_photo: sourcePhoto,
             items: items.map((i) => ({
               ...i,
               qty: Number(i.qty),
@@ -1794,6 +1826,7 @@ function DocumentForm({
               setDueDate("");
               setSignature(null);
               setPhoto(null);
+              setSourcePhoto(null);
               setItems([{ name: "", qty: 1, price: "", gst: 18 }]);
             }}
           >
@@ -1933,6 +1966,34 @@ function DocumentForm({
             </option>
           ))}
       </datalist>
+      {!sourcePhoto && (
+        <PhotoItems
+          mode={mode}
+          offline={offline}
+          busy={busy}
+          t={t}
+          available={state.photoReadingAvailable}
+          onApply={(scanned, source) => {
+            const existing = items.filter(
+              (i) => i.name.trim() || i.price !== "",
+            );
+            if (existing.length + scanned.length > 100) {
+              setError("Add at most 100 items per estimate.");
+              return false;
+            }
+            setItems([...existing, ...scanned]);
+            setSourcePhoto(source);
+          }}
+        />
+      )}
+      {sourcePhoto && (
+        <p className="draft-note">
+          {t(
+            "Source list photo retained. Customer signature is still required for a sale.",
+            "सूची की फोटो रखी गई है। बिक्री के लिए ग्राहक के हस्ताक्षर अभी भी ज़रूरी हैं।",
+          )}
+        </p>
+      )}
       <div className="item-head">
         <h3>{t("Items", "सामान")}</h3>
         <span>{tr("Prices before GST · quantities up to 3 decimals")}</span>

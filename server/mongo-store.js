@@ -146,7 +146,8 @@ export class MongoLedgerStore {
           readConcern: { level: "snapshot" },
           writeConcern: { w: "majority" },
           maxCommitTimeMS: 15000,
-          timeoutMS: 20000,
+          // Keep driver CSOT off for streaming non-awaitData getMore cursors.
+          // Connection/socket deadlines still apply to snapshot reads.
         },
       );
     } finally {

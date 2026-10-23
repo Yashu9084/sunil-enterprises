@@ -1,4 +1,24 @@
 export const hindi = {
+  "The page total was absent or unclear. Check every row against the photo.":
+    "फोटो में कुल राशि नहीं मिली या स्पष्ट नहीं है। हर लाइन फोटो से मिलाकर जाँचें।",
+  "The written page total does not match the calculated items. Check for a misread price, quantity or missing row.":
+    "लिखी कुल राशि सामान की गिनती से नहीं मिलती। भाव, मात्रा या छूटी हुई लाइन जाँचें।",
+  "Photo reading timed out or could not connect. Nothing was saved. Please try again.":
+    "फोटो पढ़ने में समय लग गया या कनेक्शन नहीं हुआ। कुछ सेव नहीं हुआ है। फिर कोशिश करें।",
+  "AI could not read this page reliably. Try a clearer, flat photo.":
+    "यह लिखावट ठीक से नहीं पढ़ी जा सकी। साफ और सीधी फोटो लेकर फिर कोशिश करें।",
+  "AI usage limit reached. Check API credits or try again later.":
+    "फोटो पढ़ने की सेवा की सीमा पूरी हो गई है। मालिक से पूछें या बाद में कोशिश करें।",
+  "AI access is not configured correctly. Ask the owner to check the private API key and model access.":
+    "फोटो पढ़ने की सेवा ठीक से चालू नहीं है। मालिक से इसकी सेटिंग जाँचने को कहें।",
+  "Photo reading limit reached. Wait a while or enter items manually.":
+    "अभी फोटो पढ़ने की सीमा पूरी हो गई है। थोड़ी देर रुकें या सामान हाथ से भरें।",
+  "Photo is damaged or too large. Take a clear, flat photo.":
+    "फोटो खराब या बहुत बड़ी है। साफ और सीधी फोटो लें।",
+  "Choose a photo smaller than 20 MB.": "20 MB से छोटी फोटो चुनें।",
+  "Could not open this photo. Use a JPG, PNG or WebP image.":
+    "फोटो नहीं खुली। JPG, PNG या WebP फोटो चुनें।",
+
   "Shop database is unavailable. Nothing was saved. Please try again shortly.":
     "दुकान के रिकॉर्ड से कनेक्शन नहीं हो पाया। कुछ सेव नहीं हुआ है। थोड़ी देर बाद फिर कोशिश करें।",
   "Records changed in another session. Refresh and retry the same entry.":

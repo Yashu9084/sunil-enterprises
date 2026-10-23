@@ -69,3 +69,45 @@ test("API withholds success and cookies until durable commit, then fails closed 
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test("an authorized photo reader can release the projection while AI is pending, without persisting any ledger changes", async () => {
+  let reading, complete;
+  const started = new Promise((resolve) => {
+    reading = resolve;
+  });
+  const gate = new Promise((resolve) => {
+    complete = resolve;
+  });
+  const store = {
+    async refresh() {},
+    async persist() {
+      throw Error("Photo extraction must not write the ledger");
+    },
+  };
+  const app = express();
+  app.use("/api", durableApi(store));
+  app.post("/api/estimates/extract", async (req, res) => {
+    req.releaseProjection();
+    reading();
+    await gate;
+    res.json({ draft: true });
+  });
+  app.get("/api/state", (req, res) => res.json({ available: true }));
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  const base = "http://127.0.0.1:" + server.address().port;
+  try {
+    const pending = fetch(base + "/api/estimates/extract", { method: "POST" });
+    await started;
+    const state = await fetch(base + "/api/state", {
+      signal: AbortSignal.timeout(2000),
+    });
+    assert.equal(state.status, 200);
+    assert.deepEqual(await state.json(), { available: true });
+    complete();
+    assert.deepEqual(await (await pending).json(), { draft: true });
+  } finally {
+    complete();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

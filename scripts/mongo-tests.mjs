@@ -69,14 +69,17 @@ try {
     [
       "--test",
       "server/history.test.js",
+      "server/estimate-ai.test.js",
       "server/lifecycle.test.js",
       "server/mongo.test.js",
       "server/durable-api.test.js",
     ],
     env,
   );
-  if (process.argv.includes("--browser"))
+  if (process.argv.includes("--browser")) {
     await run("npm", ["run", "test:browser"], env);
+    await run(process.execPath, ["scripts/photo-browser-smoke.mjs"], env);
+  }
 } finally {
   try {
     docker("rm", "-f", "-v", name);

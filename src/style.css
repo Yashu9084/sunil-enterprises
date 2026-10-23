@@ -1685,3 +1685,29 @@ input[type="checkbox"] {
     font-size: 13px;
   }
 }
+
+/* Large controls for checking a handwritten list on the shop phone. */
+.photo-reader { padding: 18px; margin: 20px 0; border: 2px solid #c7d9d0; border-radius: 14px; background: #f6faf7; }
+.photo-reader h3 { display: flex; align-items: center; gap: 9px; }
+.photo-reader p { line-height: 1.6; overflow-wrap: anywhere; }
+.scan-photo { display: block; width: 100%; max-height: 420px; object-fit: contain; background: #e9eee9; margin: 12px 0; border-radius: 8px; }
+.scan-photo-link { display: block; font-weight: 600; margin-top: 12px; }
+.scan-row { border: 1px solid #baccc0; background: white; border-radius: 10px; margin: 16px 0; padding: 14px; }
+.scan-row-heading { display: flex; align-items: center; justify-content: space-between; }
+.scan-original { padding: 10px; background: #f1f4ef; white-space: pre-wrap; }
+.scan-numbers { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.scan-row input:not([type=checkbox]) { width: 100%; min-width: 0; font-size: 18px; min-height: 48px; }
+.scan-warning { background: #fff3ce; border-left: 4px solid #ac7621; padding: 10px; color: #65420c; }
+.scan-confirm { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; font-size: 16px; color: #153e35; }
+.scan-confirm input[type=checkbox] { flex: 0 0 24px; width: 24px; height: 24px; margin: 3px 0; }
+.scan-summary { padding: 12px; border-top: 2px solid #b8cdbf; font-size: 18px; }
+@media (max-width: 480px) { .photo-reader { padding: 12px; } .scan-row { padding: 10px; } }
+.photo-reader summary { display: flex; align-items: center; gap: 9px; font-size: 18px; font-weight: 650; cursor: pointer; list-style: none; }
+.photo-reader summary::after { content: "+"; margin-left: auto; font-size: 24px; }
+.photo-reader[open] summary::after { content: "−"; }
+.document-detail .estimate-sheet { table-layout: fixed; border: 1px solid #b0bdb3; font-size: 17px; }
+.document-detail .estimate-sheet th, .document-detail .estimate-sheet td { border: 1px solid #b0bdb3; padding: 13px 8px; color: #17221b; font-size: 16px; vertical-align: top; overflow-wrap: anywhere; }
+.document-detail .estimate-sheet th { font-size: 13px; letter-spacing: 0; text-transform: none; }
+.document-detail .estimate-sheet td:nth-child(2) { font-size: 18px; line-height: 1.6; }
+.document-detail .estimate-sheet small { font-size: 12px; }
+@media (max-width: 480px) { .document-detail .estimate-sheet td, .document-detail .estimate-sheet th { padding: 10px 4px; font-size: 14px; } .document-detail .estimate-sheet td:nth-child(2) { font-size: 16px; } }

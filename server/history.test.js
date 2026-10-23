@@ -12,7 +12,7 @@ test("paged history and selected-party balances include records outside the rece
       headers: { "Content-Type": "application/json", Cookie: cookie },
       body: body ? JSON.stringify(body) : undefined,
     });
-    assert.equal(r.status, 200);
+    assert.equal(r.status, 200, path + ": " + service.output);
     if (r.headers.get("set-cookie"))
       cookie = r.headers.get("set-cookie").split(";")[0];
     return r.json();
