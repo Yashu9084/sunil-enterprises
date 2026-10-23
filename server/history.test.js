@@ -1,8 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { DatabaseSync } from "node:sqlite";
-import { join } from "node:path";
 import { startTestServer } from "./test-support.js";
 test("paged history and selected-party balances include records outside the recent phone window", async () => {
   const service = await startTestServer();
@@ -25,14 +23,14 @@ test("paged history and selected-party balances include records outside the rece
     const party = (
       await api("parties", { name: "Long-running account", kind: "customer" })
     ).id;
-    const db = new DatabaseSync(join(service.dir, "shop.sqlite"));
-    db.exec("BEGIN");
-    for (let i = 0; i < 600; i++)
-      db.prepare(
-        "INSERT INTO documents(kind,party_id,tax_mode,items,total,created_by,created_at) VALUES('sale',?,'non-gst','[]',10000,1,'2025-01-01T00:00:00Z')",
-      ).run(party);
-    db.exec("COMMIT");
-    db.close();
+    await service.seed((db) => {
+      db.exec("BEGIN");
+      for (let i = 0; i < 600; i++)
+        db.prepare(
+          "INSERT INTO documents(kind,party_id,tax_mode,items,total,created_by,created_at) VALUES('sale',?,'non-gst','[]',10000,1,'2025-01-01T00:00:00Z')",
+        ).run(party);
+      db.exec("COMMIT");
+    });
     const state = await api("state");
     assert.equal(state.documents.length, 250);
     assert.equal(state.today.count, 0);

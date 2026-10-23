@@ -2,9 +2,8 @@ import { parseArgs } from "node:util";
 import { createInterface, emitKeypressEvents } from "node:readline";
 import { stdin, stdout } from "node:process";
 import { randomBytes, scryptSync } from "node:crypto";
-import { resolve } from "node:path";
-import { mkdirSync, readFileSync } from "node:fs";
-import { openLedger } from "../server/ledger.js";
+import { readFileSync } from "node:fs";
+import { openOperatorStore } from "../server/operator-store.js";
 import { audit, transaction } from "../server/operations.js";
 const action = process.argv[2];
 const { values } = parseArgs({
@@ -54,9 +53,8 @@ if (
   throw Error(
     "Use a valid username (3–50 letters/digits/._-) and a password of 12–256 characters.",
   );
-const dir = resolve(process.env.DATA_DIR || "data");
-mkdirSync(dir, { recursive: true, mode: 0o700 });
-const db = openLedger(resolve(dir, "shop.sqlite"));
+const storage = await openOperatorStore();
+const db = storage.db;
 try {
   transaction(db, () => {
     const salt = randomBytes(16).toString("hex"),
@@ -87,11 +85,12 @@ try {
       audit(db, u.id, "recovery", "user", u.id);
     }
   });
+  await storage.mongo?.persist();
   console.log(
     action === "create"
       ? "Owner account created."
       : "Owner password reset; old sessions revoked.",
   );
 } finally {
-  db.close();
+  await storage.close();
 }

@@ -1,4 +1,11 @@
 export const hindi = {
+  "Shop database is unavailable. Nothing was saved. Please try again shortly.":
+    "दुकान के रिकॉर्ड से कनेक्शन नहीं हो पाया। कुछ सेव नहीं हुआ है। थोड़ी देर बाद फिर कोशिश करें।",
+  "Records changed in another session. Refresh and retry the same entry.":
+    "दूसरे फोन से रिकॉर्ड बदले हैं। रिकॉर्ड दोबारा लोड करें और इसी एंट्री को फिर सेव करें।",
+  "Could not confirm the database save. Refresh and retry the same entry; do not create a new payment.":
+    "सेव होने की पुष्टि नहीं हो पाई। रिकॉर्ड दोबारा लोड करके इसी एंट्री को फिर सेव करें; नया भुगतान न बनाएँ।",
+
   "Loading your shop…": "आपकी दुकान खुल रही है…",
   "A simpler day at the shop.": "दुकान का काम अब आसान।",
   "DIGITAL KHATA": "डिजिटल खाता",

@@ -12,8 +12,13 @@ import {
   chmodSync,
   unlinkSync,
   existsSync,
+  mkdtempSync,
+  rmSync,
 } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
+import { tmpdir } from "node:os";
+import { MongoLedgerStore } from "./mongo-store.js";
+import { durableApi } from "./durable-api.js";
 import {
   openLedger,
   calculateItems,
@@ -38,11 +43,26 @@ import {
   decryptBackup,
   validateBackup,
 } from "./backups.js";
-const data = resolve(process.env.DATA_DIR || "data");
+const mongoEnabled =
+  process.env.STORAGE_BACKEND === "mongodb" || Boolean(process.env.MONGODB_URI);
+if ((mongoEnabled || process.env.RENDER === "true") && !process.env.MONGODB_URI)
+  throw Error(
+    "MONGODB_URI is required for MongoDB/Render deployment; refusing local-only storage.",
+  );
+const data = mongoEnabled
+  ? mkdtempSync(join(tmpdir(), "sunil-mongo-cache-"))
+  : resolve(process.env.DATA_DIR || "data");
 mkdirSync(data, { recursive: true, mode: 0o700 });
 let databaseVersion = 0;
 let db = openLedger(resolve(data, "shop.sqlite"));
 chmodSync(resolve(data, "shop.sqlite"), 0o600);
+const mongoStore = mongoEnabled
+  ? await MongoLedgerStore.connect({
+      uri: process.env.MONGODB_URI,
+      database: process.env.MONGODB_DB || "sunil_enterprises",
+      getLedger: () => db,
+    })
+  : null;
 const app = express();
 app.set("trust proxy", process.env.TRUST_PROXY === "1" ? 1 : false);
 app.use((req, res, next) => {
@@ -93,6 +113,7 @@ app.use("/api", (req, res, next) => {
   }
   next();
 });
+if (mongoStore) app.use("/api", durableApi(mongoStore));
 app.get("/api/status", (req, res) =>
   res.json({
     needsSetup: !db.prepare("SELECT id FROM users LIMIT 1").get(),
@@ -490,9 +511,9 @@ const owner = (req, res, next) =>
     : res
         .status(403)
         .json({ error: "Only the shop owner can perform this action." });
-const action = (fn) => (req, res) => {
+const action = (fn) => async (req, res) => {
   try {
-    res.json(fn(req));
+    res.json(await fn(req));
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
@@ -783,7 +804,7 @@ app.post("/api/backups/create", owner, (req, res) => {
 app.post(
   "/api/backups/restore",
   owner,
-  action((req) => {
+  action(async (req) => {
     const u = db.prepare("SELECT hash FROM users WHERE id=?").get(req.user.id);
     if (!verify(String(req.body.current_password || ""), u.hash))
       throw Error("Incorrect account password.");
@@ -795,6 +816,11 @@ app.post(
     if (req.body.preview) return info;
     if (req.body.confirmation !== "RESTORE")
       throw Error("Type RESTORE to replace the current shop records.");
+    let safetyBackupId;
+    if (mongoStore)
+      safetyBackupId = await mongoStore.retainSafetyBackup(
+        encryptBackup(snapshot(db), req.body.passphrase),
+      );
     const backups = resolve(data, "backups");
     mkdirSync(backups, { recursive: true, mode: 0o700 });
     const safety = resolve(backups, "pre-restore-" + Date.now() + ".sqlite");
@@ -824,7 +850,7 @@ app.post(
       authenticated_operator: req.user.username,
       counts: info.counts,
     });
-    return { ok: true, signInAgain: true, counts: info.counts };
+    return { ok: true, signInAgain: true, counts: info.counts, safetyBackupId };
   }),
 );
 app.get("/api/documents/:id/pdf", (req, res) => {
@@ -886,8 +912,10 @@ const server = app.listen(
 );
 for (const signal of ["SIGTERM", "SIGINT"])
   process.on(signal, () => {
-    server.close(() => {
+    server.close(async () => {
       db.close();
+      await mongoStore?.close();
+      if (mongoEnabled) rmSync(data, { recursive: true, force: true });
       process.exit(0);
     });
     setTimeout(() => process.exit(1), 10000).unref();

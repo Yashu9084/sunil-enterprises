@@ -19,3 +19,18 @@ jobs:
         env:
           PLAYWRIGHT_USE_BUNDLED: "1"
       - run: npm audit --omit=dev --audit-level=high
+
+  mongodb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:mongo -- --browser
+        env:
+          PLAYWRIGHT_USE_BUNDLED: "1"

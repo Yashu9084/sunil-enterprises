@@ -1,6 +1,8 @@
 # Sunil Enterprises · Digital Khata
 
-A shared web app and installable PWA for a shop that works with signed estimates, credit sales, purchases, and customer-to-supplier payments. React + Express + SQLite; Node **24+**. No external database or cloud account is needed for local use.
+A shared web app and installable PWA for a shop that works with signed estimates, credit sales, purchases, and customer-to-supplier payments. React + Express; Node **24+**. Local installations use SQLite. Render deployment uses MongoDB Atlas as the durable store with a disposable SQLite calculation cache. No external database or cloud account is needed for local use.
+
+[Deploy on Render Free with MongoDB Atlas](docs/RENDER.md)
 
 ## Run locally
 
@@ -16,6 +18,8 @@ npm test                # ledger, API lifecycle, authorization and backup tests
 npm run test:browser    # production build + real Chromium workflow in a disposable shop
 npm run build
 npm start
+# MongoDB durability/concurrency tests in a disposable Docker replica set:
+npm run test:mongo
 ```
 
 The browser test uses `/usr/bin/chromium` if available, otherwise a Playwright browser (`npx playwright install chromium`). It creates and removes its own test data and server. `PLAYWRIGHT_USE_BUNDLED=1` forces the bundled browser. Runtime records live in ignored `data/shop.sqlite`, or the persistent `DATA_DIR` you configure. Do not put real records in Git.
@@ -50,14 +54,14 @@ Balances refresh every 15 seconds. Search and history are paginated; old records
 
 ## Backup and recovery
 
-The owner can create a passphrase-encrypted `.skbackup` containing the full ledger, signed proofs and staff accounts. Sessions are removed. Restore first authenticates the backup and checks SQLite integrity and foreign keys, previews the record counts, and requires the current owner's password plus typed `RESTORE`. The running shop is replaced only after validation; a pre-restore safety snapshot is retained locally and sessions are revoked. Sign in using an owner account from the backup.
+The owner can create a passphrase-encrypted `.skbackup` containing the full ledger, signed proofs and staff accounts. Sessions are removed. Restore first authenticates the backup and checks SQLite integrity and foreign keys, previews the record counts, and requires the current owner's password plus typed `RESTORE`. The running shop is replaced only after validation; a pre-restore safety snapshot is retained (encrypted in Atlas in MongoDB mode, restricted locally for SQLite), and sessions are revoked. Sign in using an owner account from the backup.
 
 Browser restore accepts files up to 40 MB; use the documented offline CLI for larger files. JSON export is an unencrypted record archive, **not** a restorable system backup. Losing the backup passphrase makes the encrypted backup unrecoverable. Keep encrypted off-server copies and test recovery regularly.
 
 ## Deployment status and scope
 
-Production code, Docker/Compose files, TLS proxy configuration, private owner setup, health checks and recovery tooling are included. **Public deployment has not been performed.** Initialize privately, attach durable storage, configure HTTPS and off-server backups, and perform the real-device shop acceptance walkthrough before switching the books over.
+A Render Free Blueprint with Atlas persistence, private owner setup, health checks and recovery tooling is included. Docker/Compose and AWS configurations remain alternative deployment routes. **Public deployment has not been performed.** Follow the [Render/Atlas deployment guide](docs/RENDER.md), configure independent backups, and perform the real-device shop acceptance walkthrough before switching the books over.
 
 These are **estimates and commercial ledger records**, not statutory GST invoices, GST credit notes, e-invoices or tax filing software. The GST toggle records the selected treatment; it does not determine a transaction's legal tax status. Record every transaction in accordance with applicable law and have the accountant verify GST rates and opening balances. The app does not send money, access bank accounts or automatically verify transfers. Bank matching is an owner-confirmed reconciliation record. Duplicate active references for the same route, method and GST category are rejected, including entries made independently on different phones. Signature images preserve evidence but do not independently verify identity or customer acceptance of electronic signatures.
 
-The app targets one shop on one Node process with SQLite on a local persistent disk. Do not run multiple app replicas or place the database on an unreliable/shared network filesystem. Automated OCR, stock valuation, statutory invoicing, automatic WhatsApp sending and banking integrations are outside this estimate/ledger workflow. Hindi/English interfaces are included; customer names, staff-entered notes, references and technical identifiers retain their original text.
+The app targets one shop. SQLite mode requires one Node process and a reliable local persistent disk. MongoDB mode uses transactional revision checks to protect against overlapping processes during Render deploys; it is designed for the free single-service setup, not unmeasured large-scale traffic. Render sleep/wake and Atlas storage limits apply. Automated OCR, stock valuation, statutory invoicing, automatic WhatsApp sending and banking integrations are outside this estimate/ledger workflow. Hindi/English interfaces are included; customer names, staff-entered notes, references and technical identifiers retain their original text.

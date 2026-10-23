@@ -1,5 +1,8 @@
 # Operations and recovery
 
+For **Render + MongoDB Atlas**, follow [RENDER.md](RENDER.md) first. MongoDB is authoritative; its temporary SQLite calculation cache is rebuilt on restart. Operator commands now use MongoDB when `MONGODB_URI` is configured. Local-disk persistence and local pre-restore snapshots below describe standalone SQLite installations. Render Free does not provide scheduled backups in this configuration: download independent encrypted copies regularly.
+
+
 ## Data and access
 
 Use Node 24+, one application process and a persistent local `DATA_DIR`. It contains SQLite/WAL files and signed images inside the database. The application uses transactions and foreign keys; never reset or delete this directory to fix a login issue. Keep file access limited to the service account. Never commit the directory, `.env`, backups or credentials.
@@ -56,4 +59,4 @@ Never fix money by editing the SQLite file, mutating a signed estimate or deleti
 
 Take and authenticate a backup first. Stop the app, install locked dependencies, build and restart. Additive schema migrations run on startup and are repeatable. Do not roll old code back against a newer database schema without a tested matching backup. Verify the ledger tests in a disposable database and perform the smoke workflow before switching traffic.
 
-See [deployment preparation](DEPLOYMENT.md) for the supplied container configuration. No public service, DNS, certificate, scheduled backup provider or remote Git push is created by these instructions.
+See [deployment preparation](DEPLOYMENT.md) for the supplied container configuration. Deployment instructions do not themselves create a public service. The Render Blueprint is configured separately through your account.

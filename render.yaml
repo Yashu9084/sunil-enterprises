@@ -1,0 +1,26 @@
+# Render Blueprint. Atlas credentials are entered privately in Render's dashboard.
+services:
+  - type: web
+    name: sunil-enterprises
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/status
+    autoDeployTrigger: "off"
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: STORAGE_BACKEND
+        value: mongodb
+      - key: TRUST_PROXY
+        value: "1"
+      - key: MONGODB_DB
+        value: sunil_enterprises
+      - key: MONGODB_URI
+        sync: false
+      - key: SETUP_TOKEN
+        generateValue: true

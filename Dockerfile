@@ -16,7 +16,7 @@ RUN --mount=type=secret,id=https_proxy,env=HTTPS_PROXY --mount=type=secret,id=ht
 COPY --from=build /app/dist ./dist
 COPY server ./server
 COPY shared ./shared
-COPY scripts/admin.mjs scripts/backup.mjs ./scripts/
+COPY scripts/admin.mjs scripts/backup.mjs scripts/safety-backup.mjs ./scripts/
 COPY assets ./assets
 RUN mkdir -p /app/data && chown -R node:node /app
 USER node

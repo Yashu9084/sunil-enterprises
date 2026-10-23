@@ -1,5 +1,8 @@
 # Deployment preparation — not yet published
 
+**Current route:** [Render Free + MongoDB Atlas](RENDER.md), with a provided HTTPS `onrender.com` hostname and no persistent Render disk. The Docker/domain instructions below are for an alternative self-hosted SQLite deployment.
+
+
 The app is prepared for one shop on one Node 24+ process with local persistent SQLite storage. The supplied Compose setup binds the app to **127.0.0.1:3000**; its public TLS proxy is opt-in. No deployment has been performed.
 
 ## Choose and configure the host
