@@ -156,14 +156,11 @@ export async function renderPdf(
         doc.fontSize(size).widthOfString(String(value)) > width
       )
         size--;
-      doc
-        .fontSize(size)
-        .fillColor("#111111")
-        .text(String(value), left, top, {
-          width,
-          align: "right",
-          lineBreak: false,
-        });
+      doc.fontSize(size).fillColor("#111111").text(String(value), left, top, {
+        width,
+        align: "right",
+        lineBreak: false,
+      });
     };
     const moneyNumber = (value) =>
       (value / 100).toLocaleString("en-IN", {
@@ -211,7 +208,15 @@ export async function renderPdf(
       gap();
     };
     if (doc.y > 620) continuation();
-    tableHead();
+    if (d.entry_mode === "photo")
+      line(
+        t(
+          "Recorded from photo — item details not entered.",
+          "फोटो से रिकॉर्ड — सामान का विवरण नहीं भरा गया।",
+        ),
+        14,
+      );
+    else tableHead();
     for (const item of JSON.parse(d.items)) {
       const nameHeight = doc
         .fontSize(16)

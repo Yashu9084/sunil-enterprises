@@ -30,6 +30,10 @@ The browser test uses `/usr/bin/chromium` if available, otherwise a Playwright b
 
 Signed PDFs use a large ruled quantity/item/rate/amount table, aligned amounts, wrapped Hindi names, repeated table headings on continuation pages and a prominent total. Scanned source photos remain available separately for reference.
 
+## Quick entry and reports
+
+Choose **Photo + total** to save a signed estimate photo and final amount without entering items or using AI. Use **Reports** (or **More → Open reports** on phones) for date ranges, sales/purchases, payment routes/methods, refunds, bank matching, outstanding accounts, opening/closing statements, daily activity and item-wise summaries. List filters and full CSV/PDF exports use the complete book. [Workflow and reporting definitions](docs/REPORTING.md).
+
 ## Shop workflow
 
 1. Add customers and suppliers. A party can be both. Store their phone, address, GSTIN and optional bank/UPI details.

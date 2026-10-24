@@ -1,4 +1,6 @@
 import express from "express";
+import { buildReport } from "./reports.js";
+import { exportReport } from "./report-export.js";
 import {
   randomBytes,
   scryptSync,
@@ -221,12 +223,10 @@ app.use("/api", (req, res, next) => {
 const scanUsage = new Map();
 app.post("/api/estimates/extract", async (req, res) => {
   if (!process.env.OPENAI_API_KEY) {
-    return res
-      .status(503)
-      .json({
-        error:
-          "Photo reading is not configured. Ask the owner to set OPENAI_API_KEY privately in Render.",
-      });
+    return res.status(503).json({
+      error:
+        "Photo reading is not configured. Ask the owner to set OPENAI_API_KEY privately in Render.",
+    });
   }
   const now = Date.now();
   for (const [id, usage] of scanUsage)
@@ -234,12 +234,10 @@ app.post("/api/estimates/extract", async (req, res) => {
   const user = req.user.id;
   const usage = scanUsage.get(user) || { start: now, count: 0, active: false };
   if (usage.active || usage.count >= 20)
-    return res
-      .status(429)
-      .json({
-        error:
-          "Photo reading limit reached. Wait a while or enter items manually.",
-      });
+    return res.status(429).json({
+      error:
+        "Photo reading limit reached. Wait a while or enter items manually.",
+    });
   const catalog = db
     .prepare("SELECT items FROM documents ORDER BY id DESC LIMIT 100")
     .all()
@@ -308,7 +306,7 @@ app.get("/api/state", (req, res) => {
     parties,
     documents: db
       .prepare(
-        "SELECT id,kind,party_id,tax_mode,total,created_at,created_by,due_date FROM documents ORDER BY id DESC LIMIT 250",
+        "SELECT id,kind,party_id,tax_mode,entry_mode,total,created_at,created_by,due_date FROM documents ORDER BY id DESC LIMIT 250",
       )
       .all()
       .map((d) => documentStatus(db, d)),
@@ -410,7 +408,25 @@ app.post("/api/documents", async (req, res) => {
       throw Error("Choose a suitable customer or supplier.");
     if (String(p.notes || "").length > 1000)
       throw Error("Notes must be 1,000 characters or fewer.");
-    const result = calculateItems(p.items, p.tax_mode);
+    const entryMode = p.entry_mode || "items";
+    if (!["items", "photo"].includes(entryMode))
+      throw Error("Choose item entry or photo + total.");
+    let result;
+    if (entryMode === "photo") {
+      if (p.items && (!Array.isArray(p.items) || p.items.length))
+        throw Error("Photo-only records must not contain item rows.");
+      if (
+        !Number.isSafeInteger(p.total) ||
+        p.total <= 0 ||
+        p.total > 100000000000
+      )
+        throw Error("Enter a positive total with at most two decimal places.");
+      if (!p.photo)
+        throw Error(
+          "Attach the estimate or purchase photo before saving a photo-only record.",
+        );
+      result = { items: [], total: p.total };
+    } else result = calculateItems(p.items, p.tax_mode);
     p.signature = await canonicalProof(p.signature);
     p.photo = await canonicalProof(p.photo);
     p.source_photo = await canonicalSource(p.source_photo);
@@ -434,6 +450,8 @@ app.post("/api/documents", async (req, res) => {
         previous.kind !== p.kind ||
         previous.tax_mode !== p.tax_mode ||
         previous.items !== JSON.stringify(result.items) ||
+        previous.total !== result.total ||
+        previous.entry_mode !== entryMode ||
         previous.signature !== (p.signature || null) ||
         previous.photo !== (p.photo || null) ||
         previous.source_photo !== (p.source_photo || null) ||
@@ -461,7 +479,7 @@ app.post("/api/documents", async (req, res) => {
     const id = transaction(db, () => {
       const r = db
         .prepare(
-          "INSERT INTO documents(kind,party_id,tax_mode,items,total,signature,photo,notes,created_by,request_id,due_date,party_snapshot,shop_snapshot,source_photo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO documents(kind,party_id,tax_mode,items,total,signature,photo,notes,created_by,request_id,due_date,party_snapshot,shop_snapshot,source_photo,entry_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .run(
           p.kind,
@@ -479,9 +497,11 @@ app.post("/api/documents", async (req, res) => {
           db.prepare("SELECT value FROM settings WHERE key='shop'").get()
             ?.value || JSON.stringify({ name: "Sunil Enterprises" }),
           p.source_photo || null,
+          entryMode,
         );
       audit(db, req.user.id, "create", "document", Number(r.lastInsertRowid), {
         total: result.total,
+        entry_mode: entryMode,
       });
       return Number(r.lastInsertRowid);
     });
@@ -572,56 +592,26 @@ const action = (fn) => async (req, res) => {
   }
 };
 app.get(
-  "/api/records",
-  action((req) => {
-    const type = req.query.type === "payment" ? "payment" : "document",
-      page = Math.max(
-        1,
-        Math.min(100000, Math.floor(Number(req.query.page)) || 1),
-      ),
-      limit = 50,
-      q = String(req.query.q || "").slice(0, 100),
-      like = "%" + q + "%",
-      party = Number(req.query.party) || 0;
-    let rows, total;
-    if (type === "document") {
-      const where =
-          "(?=0 OR d.party_id=?) AND (p.name LIKE ? OR p.phone LIKE ? OR ('SE-'||printf('%04d',d.id)) LIKE ? OR d.notes LIKE ?)",
-        args = [party, party, like, like, like, like];
-      rows = db
-        .prepare(
-          "SELECT d.id,d.kind,d.party_id,d.tax_mode,d.total,d.created_at,d.created_by,d.due_date FROM documents d JOIN parties p ON p.id=d.party_id WHERE " +
-            where +
-            " ORDER BY d.id DESC LIMIT ? OFFSET ?",
-        )
-        .all(...args, limit, (page - 1) * limit)
-        .map((d) => documentStatus(db, d));
-      total = db
-        .prepare(
-          "SELECT COUNT(*) n FROM documents d JOIN parties p ON p.id=d.party_id WHERE " +
-            where,
-        )
-        .get(...args).n;
-    } else {
-      const where =
-          "(?=0 OR p.customer_id=? OR p.supplier_id=?) AND (COALESCE(c.name,'Our shop') LIKE ? OR COALESCE(s.name,'Our shop') LIKE ? OR p.reference LIKE ?)",
-        args = [party, party, party, like, like, like];
-      rows = db
-        .prepare(
-          "SELECT p.* FROM payments p LEFT JOIN parties c ON c.id=p.customer_id LEFT JOIN parties s ON s.id=p.supplier_id WHERE " +
-            where +
-            " ORDER BY p.id DESC LIMIT ? OFFSET ?",
-        )
-        .all(...args, limit, (page - 1) * limit);
-      total = db
-        .prepare(
-          "SELECT COUNT(*) n FROM payments p LEFT JOIN parties c ON c.id=p.customer_id LEFT JOIN parties s ON s.id=p.supplier_id WHERE " +
-            where,
-        )
-        .get(...args).n;
+  "/api/reports",
+  action((req) => buildReport(db, req.query)),
+);
+for (const format of ["csv", "pdf"])
+  app.get("/api/reports/export." + format, owner, (req, res) => {
+    try {
+      exportReport(db, req.query, res, format);
+    } catch (error) {
+      if (!res.headersSent) res.status(400).json({ error: error.message });
+      else res.destroy();
     }
-    return { rows, total, page, pages: Math.max(1, Math.ceil(total / limit)) };
-  }),
+  });
+app.get(
+  "/api/records",
+  action((req) =>
+    buildReport(db, {
+      ...req.query,
+      report: req.query.type === "payment" ? "payments" : "documents",
+    }),
+  ),
 );
 app.get(
   "/api/parties/:id/open",

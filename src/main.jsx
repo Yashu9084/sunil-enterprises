@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
   LayoutDashboard,
+  BarChart3,
   Users,
   FileText,
   ArrowLeftRight,
@@ -25,6 +26,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import "./style.css";
+import { Reports, ReportFilters } from "./Reports.jsx";
 import { PhotoItems } from "./PhotoItems.jsx";
 import { tr, hindi } from "./i18n.js";
 import { money, date, paise, api, sharePdf } from "./lib.js";
@@ -48,6 +50,7 @@ function App() {
     [page, setPage] = useState("home"),
     [records, setRecords] = useState(null),
     [recordPage, setRecordPage] = useState(1),
+    [recordFilters, setRecordFilters] = useState({}),
     [recordsLoading, setRecordsLoading] = useState(false),
     [lang, setLang] = useState(localStorage.getItem("lang") || "en"),
     [modal, setModal] = useState(null),
@@ -130,14 +133,21 @@ function App() {
   useEffect(() => {
     setRecordPage(1);
     setRecords(null);
-  }, [page, query, partyFilter]);
+  }, [page, query, partyFilter, recordFilters]);
   useEffect(() => {
     if (!state || !["documents", "payments"].includes(page)) return;
     let cancelled = false;
     setRecordsLoading(true);
     const timer = setTimeout(() => {
       api(
-        `records?type=${page === "payments" ? "payment" : "document"}&page=${recordPage}&q=${encodeURIComponent(query)}&party=${partyFilter || 0}`,
+        "records?" +
+          new URLSearchParams({
+            ...recordFilters,
+            type: page === "payments" ? "payment" : "document",
+            page: recordPage,
+            q: query,
+            party: recordFilters.party || partyFilter || 0,
+          }).toString(),
       )
         .then((r) => {
           if (!cancelled) setRecords(r);
@@ -153,7 +163,7 @@ function App() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [page, query, partyFilter, recordPage, state]);
+  }, [page, query, partyFilter, recordPage, state, recordFilters]);
   const notify = (s) => {
     setToast(s);
     setTimeout(() => setToast(""), 4500);
@@ -355,6 +365,7 @@ function App() {
     ["documents", FileText, t("Estimates & purchases", "अनुमान और खरीद")],
     ["parties", Users, t("Customers & suppliers", "ग्राहक और सप्लायर")],
     ["payments", ArrowLeftRight, t("Payments", "भुगतान")],
+    ["reports", BarChart3, t("Reports", "रिपोर्ट")],
     ["settings", ShieldCheck, t("Shop & staff", "दुकान और स्टाफ")],
   ];
   return (
@@ -376,6 +387,7 @@ function App() {
               className={page === id ? "active" : ""}
               onClick={() => {
                 setPage(id);
+                setRecordFilters({});
                 setPartyFilter(null);
                 setQuery("");
               }}
@@ -481,6 +493,16 @@ function App() {
           </div>
           {page === "home" && (
             <>
+              <button
+                className="text-btn no-print"
+                onClick={() => setPage("reports")}
+              >
+                <BarChart3 size={18} />
+                {t(
+                  "Date-range reports & statements",
+                  "तारीख के अनुसार रिपोर्ट और खाता",
+                )}
+              </button>
               <section className="stats">
                 <Stat
                   label={t("To collect", "ग्राहकों से लेना है")}
@@ -804,6 +826,31 @@ function App() {
                 </div>
               </div>
               <SearchBox query={query} setQuery={setQuery} />
+              <ReportFilters
+                value={{
+                  ...recordFilters,
+                  party: recordFilters.party || partyFilter || "",
+                }}
+                onChange={(next) => {
+                  setPartyFilter(null);
+                  setRecordFilters(next);
+                }}
+                parties={state.parties}
+                users={state.users || []}
+                type="documents"
+                search={false}
+                t={t}
+              />
+              {records && (
+                <p className="hint">
+                  {records.total}{" "}
+                  {t(
+                    "matching records. Filters apply to the whole book.",
+                    "मिलते रिकॉर्ड। फिल्टर पूरे खाते पर लागू हैं।",
+                  )}
+                </p>
+              )}
+
               <div className="table-scroll">
                 <table>
                   <thead>
@@ -832,6 +879,8 @@ function App() {
                             {d.kind === "sale"
                               ? tr("Sales estimate")
                               : "Purchase"}
+                            {d.entry_mode === "photo" &&
+                              " · " + t("Photo + total", "फोटो + कुल राशि")}
                           </small>
                         </td>
                         <td>{party(d.party_id)?.name}</td>
@@ -910,6 +959,31 @@ function App() {
                 </span>
               </div>
               <SearchBox query={query} setQuery={setQuery} />
+              <ReportFilters
+                value={{
+                  ...recordFilters,
+                  party: recordFilters.party || partyFilter || "",
+                }}
+                onChange={(next) => {
+                  setPartyFilter(null);
+                  setRecordFilters(next);
+                }}
+                parties={state.parties}
+                users={state.users || []}
+                type="payments"
+                search={false}
+                t={t}
+              />
+              {records && (
+                <p className="hint">
+                  {records.total}{" "}
+                  {t(
+                    "matching records. Filters apply to the whole book.",
+                    "मिलते रिकॉर्ड। फिल्टर पूरे खाते पर लागू हैं।",
+                  )}
+                </p>
+              )}
+
               {(records?.rows || []).map((p) => (
                 <div className="activity" key={p.id}>
                   <span className="activity-icon green">
@@ -1014,8 +1088,21 @@ function App() {
               )}
             </section>
           )}
+          {page === "reports" && <Reports state={state} t={t} />}
           {page === "settings" && (
             <div className="settings-grid">
+              <section className="panel">
+                <h2>{t("Reports & statements", "रिपोर्ट और खाता विवरण")}</h2>
+                <p>
+                  {t(
+                    "Filter the full book, check opening/closing balances and export reports.",
+                    "पूरा खाता छाँटें, शुरुआती/आखिरी बकाया देखें और रिपोर्ट निकालें।",
+                  )}
+                </p>
+                <button className="primary" onClick={() => setPage("reports")}>
+                  <BarChart3 size={18} /> {t("Open reports", "रिपोर्ट खोलें")}
+                </button>
+              </section>
               <section className="panel">
                 <h2>{tr("Shop & staff")}</h2>
                 <p>
@@ -1169,6 +1256,7 @@ function App() {
               className={page === id ? "active" : ""}
               onClick={() => {
                 setPage(id);
+                setRecordFilters({});
                 setPartyFilter(null);
                 setQuery("");
               }}
@@ -1335,6 +1423,7 @@ function App() {
                   </button>
                 )}
                 <StatementView
+                  state={state}
                   statement={modal.statement}
                   t={t}
                   setError={setError}
@@ -1544,39 +1633,51 @@ function App() {
                     </small>
                   </div>
                 </div>
-                <table className="estimate-sheet">
-                  <colgroup>
-                    <col style={{ width: "12%" }} />
-                    <col style={{ width: "40%" }} />
-                    <col style={{ width: "24%" }} />
-                    <col style={{ width: "24%" }} />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th className="right">{tr("Qty")}</th>
-                      <th>{t("Item / part", "सामान / पार्ट")}</th>
-                      <th className="right">{t("Rate", "भाव")}</th>
-                      <th className="right">{tr("Total")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {modal.doc.items.map((i, n) => (
-                      <tr key={n}>
-                        <td className="right">{i.qty}</td>
-                        <td>
-                          {i.name}
-                          {modal.doc.tax_mode === "gst" && (
-                            <small>
-                              GST {i.gst}% · {money(i.tax)}
-                            </small>
-                          )}
-                        </td>
-                        <td className="right">{money(i.price)}</td>
-                        <td className="right">{money(i.total)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {modal.doc.entry_mode === "photo" ? (
+                  <p className="notice">
+                    {t(
+                      "Photo + total record. Item details were not entered.",
+                      "फोटो + कुल राशि का रिकॉर्ड। सामान का विवरण नहीं भरा गया।",
+                    )}
+                  </p>
+                ) : (
+                  <>
+                    {" "}
+                    <table className="estimate-sheet">
+                      <colgroup>
+                        <col style={{ width: "12%" }} />
+                        <col style={{ width: "40%" }} />
+                        <col style={{ width: "24%" }} />
+                        <col style={{ width: "24%" }} />
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th className="right">{tr("Qty")}</th>
+                          <th>{t("Item / part", "सामान / पार्ट")}</th>
+                          <th className="right">{t("Rate", "भाव")}</th>
+                          <th className="right">{tr("Total")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {modal.doc.items.map((i, n) => (
+                          <tr key={n}>
+                            <td className="right">{i.qty}</td>
+                            <td>
+                              {i.name}
+                              {modal.doc.tax_mode === "gst" && (
+                                <small>
+                                  GST {i.gst}% · {money(i.tax)}
+                                </small>
+                              )}
+                            </td>
+                            <td className="right">{money(i.price)}</td>
+                            <td className="right">{money(i.total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
                 <div className="form-total">
                   <span>{tr("Total")}</span>
                   <strong>{money(modal.doc.total)}</strong>
@@ -1737,6 +1838,8 @@ function DocumentForm({
       return null;
     }
   });
+  const [entryMode, setEntryMode] = useState(draft?.entryMode || "items");
+  const [quickTotal, setQuickTotal] = useState(draft?.quickTotal || "");
   const [requestId, setRequestId] = useState(
     () => draft?.requestId || crypto.randomUUID(),
   );
@@ -1759,19 +1862,43 @@ function DocumentForm({
   useEffect(() => {
     sessionStorage.setItem(
       draftKey,
-      JSON.stringify({ kind, mode, items, requestId, partyId, notes, dueDate }),
+      JSON.stringify({
+        kind,
+        mode,
+        items,
+        requestId,
+        partyId,
+        notes,
+        dueDate,
+        entryMode,
+        quickTotal,
+      }),
     );
-  }, [kind, mode, items, partyId, notes, dueDate]);
+  }, [
+    kind,
+    mode,
+    items,
+    partyId,
+    notes,
+    dueDate,
+    entryMode,
+    quickTotal,
+    requestId,
+  ]);
   useEffect(() => {
     const leave = (e) => {
-      if (items.some((i) => i.name || i.price)) {
+      if (quickTotal || items.some((i) => i.name || i.price)) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", leave);
     return () => window.removeEventListener("beforeunload", leave);
-  }, [items]);
+  }, [items, quickTotal]);
+  let quickAmount = 0;
+  try {
+    quickAmount = paise(quickTotal);
+  } catch {}
   const total = items.reduce((sum, item) => {
     try {
       return (
@@ -1798,12 +1925,17 @@ function DocumentForm({
             signature,
             photo,
             source_photo: sourcePhoto,
-            items: items.map((i) => ({
-              ...i,
-              qty: Number(i.qty),
-              price: paise(i.price),
-              gst: Number(i.gst),
-            })),
+            entry_mode: entryMode,
+            ...(entryMode === "photo" ? { total: paise(quickTotal) } : {}),
+            items:
+              entryMode === "photo"
+                ? []
+                : items.map((i) => ({
+                    ...i,
+                    qty: Number(i.qty),
+                    price: paise(i.price),
+                    gst: Number(i.gst),
+                  })),
           }).then((result) => {
             if (result) sessionStorage.removeItem(draftKey);
           });
@@ -1827,6 +1959,8 @@ function DocumentForm({
               setSignature(null);
               setPhoto(null);
               setSourcePhoto(null);
+              setQuickTotal("");
+              setEntryMode("items");
               setItems([{ name: "", qty: 1, price: "", gst: 18 }]);
             }}
           >
@@ -1950,137 +2084,183 @@ function DocumentForm({
         </div>
       )}
       <TaxSelect mode={mode} setMode={setMode} />
-      <datalist id="gst-rates">
-        {[0, 0.25, 1.5, 3, 5, 12, 18, 28, 40].map((r) => (
-          <option key={r} value={r}>
-            {r}%
-          </option>
-        ))}
-      </datalist>
-      <datalist id="item-history">
-        {(state.catalog || [])
-          .filter((i) => i.kind === kind)
-          .map((i) => (
-            <option key={i.name} value={i.name}>
-              {money(i.price)}
-            </option>
-          ))}
-      </datalist>
-      {!sourcePhoto && (
-        <PhotoItems
-          mode={mode}
-          offline={offline}
-          busy={busy}
-          t={t}
-          available={state.photoReadingAvailable}
-          onApply={(scanned, source) => {
-            const existing = items.filter(
-              (i) => i.name.trim() || i.price !== "",
-            );
-            if (existing.length + scanned.length > 100) {
-              setError("Add at most 100 items per estimate.");
-              return false;
-            }
-            setItems([...existing, ...scanned]);
-            setSourcePhoto(source);
-          }}
-        />
-      )}
-      {sourcePhoto && (
-        <p className="draft-note">
-          {t(
-            "Source list photo retained. Customer signature is still required for a sale.",
-            "सूची की फोटो रखी गई है। बिक्री के लिए ग्राहक के हस्ताक्षर अभी भी ज़रूरी हैं।",
-          )}
-        </p>
-      )}
-      <div className="item-head">
-        <h3>{t("Items", "सामान")}</h3>
-        <span>{tr("Prices before GST · quantities up to 3 decimals")}</span>
+      <div className="segmented" aria-label="Estimate entry method">
+        <button
+          type="button"
+          className={entryMode === "items" ? "selected" : ""}
+          onClick={() => setEntryMode("items")}
+        >
+          {t("Enter items", "सामान भरें")}
+        </button>
+        <button
+          type="button"
+          className={entryMode === "photo" ? "selected" : ""}
+          onClick={() => setEntryMode("photo")}
+        >
+          {t("Photo + total", "फोटो + कुल राशि")}
+        </button>
       </div>
-      {items.map((i, idx) => (
-        <div className="item-row" key={idx}>
-          <input
-            placeholder="Item name / सामान"
-            list="item-history"
-            aria-label="Item name"
-            required
-            value={i.name}
-            onChange={(e) => {
-              const found = state.catalog?.find(
-                (p) => p.name === e.target.value && p.kind === kind,
-              );
-              setItems(
-                items.map((item, j) =>
-                  j === idx
-                    ? {
-                        ...item,
-                        name: e.target.value,
-                        ...(found
-                          ? {
-                              price: (found.price / 100).toFixed(2),
-                              gst: found.gst,
-                            }
-                          : {}),
-                      }
-                    : item,
-                ),
-              );
-            }}
-          />
-          <input
-            aria-label="Quantity"
-            type="number"
-            min="0.001"
-            step="0.001"
-            required
-            value={i.qty}
-            onChange={(e) => patch(idx, "qty", e.target.value)}
-          />
-          <input
-            aria-label="Unit price in rupees"
-            placeholder="₹ price"
-            inputMode="decimal"
-            required
-            value={i.price}
-            onChange={(e) => patch(idx, "price", e.target.value)}
-          />
-          {mode === "gst" && (
+      {entryMode === "photo" && (
+        <div className="quick-estimate">
+          <label>
+            {t("Final total in rupees", "कुल रकम रुपये में")}
             <input
-              aria-label="GST rate"
-              type="number"
-              min="0"
-              max="100"
-              step="0.01"
-              list="gst-rates"
-              value={i.gst}
-              onChange={(e) => patch(idx, "gst", e.target.value)}
+              aria-label="Final total in rupees"
+              inputMode="decimal"
               required
+              value={quickTotal}
+              onChange={(e) => setQuickTotal(e.target.value)}
+            />
+          </label>
+          <p className="hint">
+            {t(
+              "Enter the final amount including any GST. No item entry or AI reading is needed.",
+              "GST सहित आखिरी कुल रकम भरें। सामान भरने या AI से पढ़वाने की ज़रूरत नहीं है।",
+            )}
+          </p>
+          <p>
+            {t(
+              "Attach a photo below. For sales, use the customer-signed estimate photo.",
+              "नीचे फोटो जोड़ें। बिक्री के लिए ग्राहक के हस्ताक्षर वाले अनुमान की फोटो लें।",
+            )}
+          </p>
+        </div>
+      )}
+      {entryMode === "items" && (
+        <>
+          <datalist id="gst-rates">
+            {[0, 0.25, 1.5, 3, 5, 12, 18, 28, 40].map((r) => (
+              <option key={r} value={r}>
+                {r}%
+              </option>
+            ))}
+          </datalist>
+          <datalist id="item-history">
+            {(state.catalog || [])
+              .filter((i) => i.kind === kind)
+              .map((i) => (
+                <option key={i.name} value={i.name}>
+                  {money(i.price)}
+                </option>
+              ))}
+          </datalist>
+          {!sourcePhoto && (
+            <PhotoItems
+              mode={mode}
+              offline={offline}
+              busy={busy}
+              t={t}
+              available={state.photoReadingAvailable}
+              onApply={(scanned, source) => {
+                const existing = items.filter(
+                  (i) => i.name.trim() || i.price !== "",
+                );
+                if (existing.length + scanned.length > 100) {
+                  setError("Add at most 100 items per estimate.");
+                  return false;
+                }
+                setItems([...existing, ...scanned]);
+                setSourcePhoto(source);
+              }}
             />
           )}
+          {sourcePhoto && (
+            <p className="draft-note">
+              {t(
+                "Source list photo retained. Customer signature is still required for a sale.",
+                "सूची की फोटो रखी गई है। बिक्री के लिए ग्राहक के हस्ताक्षर अभी भी ज़रूरी हैं।",
+              )}
+            </p>
+          )}
+          <div className="item-head">
+            <h3>{t("Items", "सामान")}</h3>
+            <span>{tr("Prices before GST · quantities up to 3 decimals")}</span>
+          </div>
+          {items.map((i, idx) => (
+            <div className="item-row" key={idx}>
+              <input
+                placeholder="Item name / सामान"
+                list="item-history"
+                aria-label="Item name"
+                required
+                value={i.name}
+                onChange={(e) => {
+                  const found = state.catalog?.find(
+                    (p) => p.name === e.target.value && p.kind === kind,
+                  );
+                  setItems(
+                    items.map((item, j) =>
+                      j === idx
+                        ? {
+                            ...item,
+                            name: e.target.value,
+                            ...(found
+                              ? {
+                                  price: (found.price / 100).toFixed(2),
+                                  gst: found.gst,
+                                }
+                              : {}),
+                          }
+                        : item,
+                    ),
+                  );
+                }}
+              />
+              <input
+                aria-label="Quantity"
+                type="number"
+                min="0.001"
+                step="0.001"
+                required
+                value={i.qty}
+                onChange={(e) => patch(idx, "qty", e.target.value)}
+              />
+              <input
+                aria-label="Unit price in rupees"
+                placeholder="₹ price"
+                inputMode="decimal"
+                required
+                value={i.price}
+                onChange={(e) => patch(idx, "price", e.target.value)}
+              />
+              {mode === "gst" && (
+                <input
+                  aria-label="GST rate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  list="gst-rates"
+                  value={i.gst}
+                  onChange={(e) => patch(idx, "gst", e.target.value)}
+                  required
+                />
+              )}
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label="Remove item"
+                disabled={items.length === 1}
+                onClick={() => setItems(items.filter((_, j) => j !== idx))}
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
           <button
+            className="text-btn"
             type="button"
-            className="icon-btn"
-            aria-label="Remove item"
-            disabled={items.length === 1}
-            onClick={() => setItems(items.filter((_, j) => j !== idx))}
+            onClick={() =>
+              setItems([...items, { name: "", qty: 1, price: "", gst: 18 }])
+            }
           >
-            <Trash2 size={16} />
+            <Plus size={16} /> {t("Add another item", "और सामान जोड़ें")}
           </button>
-        </div>
-      ))}
-      <button
-        className="text-btn"
-        type="button"
-        onClick={() =>
-          setItems([...items, { name: "", qty: 1, price: "", gst: 18 }])
-        }
-      >
-        <Plus size={16} /> {t("Add another item", "और सामान जोड़ें")}
-      </button>
+        </>
+      )}
       <div className="form-total">
         <span>{t("Estimate total", "कुल राशि")}</span>
-        <strong>{money(total)}</strong>
+        <strong>{money(entryMode === "photo" ? quickAmount : total)}</strong>
       </div>
       <label>
         {t("Notes / supplier invoice number", "नोट / सप्लायर बिल नंबर")}
@@ -2100,10 +2280,15 @@ function DocumentForm({
           onChange={(e) => setDueDate(e.target.value)}
         />
       </label>
-      <h3>
-        <PenLine size={17} /> {t("Customer signature", "ग्राहक के हस्ताक्षर")}
-      </h3>
-      <Signature key={requestId} onChange={setSignature} />
+      {entryMode === "items" && (
+        <>
+          <h3>
+            <PenLine size={17} />{" "}
+            {t("Customer signature", "ग्राहक के हस्ताक्षर")}
+          </h3>
+          <Signature key={requestId} onChange={setSignature} />
+        </>
+      )}
       <label className="upload">
         <Camera size={20} />
         {photo
@@ -2114,6 +2299,8 @@ function DocumentForm({
             )}
         <input
           type="file"
+          aria-label="Estimate photo"
+          required={entryMode === "photo" && !photo}
           accept="image/png,image/jpeg,image/webp"
           capture="environment"
           onChange={(e) => {

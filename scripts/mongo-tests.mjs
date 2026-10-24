@@ -70,6 +70,8 @@ try {
       "--test",
       "server/history.test.js",
       "server/estimate-ai.test.js",
+      "server/reports.test.js",
+      "server/quick-estimate.test.js",
       "server/lifecycle.test.js",
       "server/mongo.test.js",
       "server/durable-api.test.js",
@@ -79,6 +81,7 @@ try {
   if (process.argv.includes("--browser")) {
     await run("npm", ["run", "test:browser"], env);
     await run(process.execPath, ["scripts/photo-browser-smoke.mjs"], env);
+    await run(process.execPath, ["scripts/report-browser-smoke.mjs"], env);
   }
 } finally {
   try {

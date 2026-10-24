@@ -21,6 +21,9 @@ jobs:
       - run: node scripts/photo-browser-smoke.mjs
         env:
           PLAYWRIGHT_USE_BUNDLED: "1"
+      - run: node scripts/report-browser-smoke.mjs
+        env:
+          PLAYWRIGHT_USE_BUNDLED: "1"
       - run: npm audit --omit=dev --audit-level=high
 
   mongodb:

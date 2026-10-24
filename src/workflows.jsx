@@ -1,3 +1,4 @@
+import { Reports } from "./Reports.jsx";
 import React, { useState } from "react";
 import {
   Plus,
@@ -390,7 +391,7 @@ export function BackupForm({ restore, onDone, setError, busy, setBusy, t }) {
     </form>
   );
 }
-export function StatementView({ statement: s, t, setError }) {
+export function StatementView({ statement: s, t, setError, state }) {
   const [mode, setMode] = useState("all"),
     [proof, setProof] = useState(true),
     [paymentScope, setPaymentScope] = useState(
@@ -426,6 +427,20 @@ export function StatementView({ statement: s, t, setError }) {
           {s.party.phone} · {s.party.address}
         </p>
       </div>
+      {state && (
+        <details className="period-statement no-print">
+          <summary>
+            {t("Date-range account statement", "तारीख के अनुसार खाता विवरण")}
+          </summary>
+          <Reports
+            state={state}
+            t={t}
+            initialReport="ledger"
+            initialParty={s.party.id}
+            compact
+          />
+        </details>
+      )}
       <div className="button-group no-print">
         <select
           aria-label="Statement tax category"
