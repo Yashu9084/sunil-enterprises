@@ -38,6 +38,7 @@ import {
   BackupForm,
   StatementView,
   ShopForm,
+  ResetShopForm,
   CreditForm,
   ReverseAdjustmentForm,
   BankFields,
@@ -1103,6 +1104,19 @@ function App() {
                   <BarChart3 size={18} /> {t("Open reports", "रिपोर्ट खोलें")}
                 </button>
               </section>
+              {state.user.role === "owner" && (
+                <section className="panel">
+                  <ResetShopForm
+                    t={t}
+                    onReset={() => {
+                      signOut();
+                      setStatus({ needsSetup: false });
+                      setPage("home");
+                      setError("");
+                    }}
+                  />
+                </section>
+              )}
               <section className="panel">
                 <h2>{tr("Shop & staff")}</h2>
                 <p>

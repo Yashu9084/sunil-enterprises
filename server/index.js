@@ -1,4 +1,5 @@
 import express from "express";
+import { resetShopData } from "./reset-shop.js";
 import { buildReport } from "./reports.js";
 import { exportReport } from "./report-export.js";
 import {
@@ -591,6 +592,26 @@ const action = (fn) => async (req, res) => {
     res.status(400).json({ error: e.message });
   }
 };
+app.post("/api/shop/reset-data", owner, (req, res) => {
+  try {
+    const user = db
+      .prepare("SELECT hash FROM users WHERE id=?")
+      .get(req.user.id);
+    if (!verify(String(req.body.current_password || ""), user.hash))
+      throw Error("Incorrect account password.");
+    if (req.body.confirmation !== "DELETE SHOP DATA")
+      throw Error("Type DELETE SHOP DATA to clear the business records.");
+    const deleted = resetShopData(db, req.user.id);
+    databaseVersion++;
+    res.setHeader(
+      "Set-Cookie",
+      "session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
+    );
+    res.json({ ok: true, signInAgain: true, deleted, backupsDeleted: false });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
 app.get(
   "/api/reports",
   action((req) => buildReport(db, req.query)),

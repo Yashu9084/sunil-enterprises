@@ -60,3 +60,10 @@ Never fix money by editing the SQLite file, mutating a signed estimate or deleti
 Take and authenticate a backup first. Stop the app, install locked dependencies, build and restart. Additive schema migrations run on startup and are repeatable. Do not roll old code back against a newer database schema without a tested matching backup. Verify the ledger tests in a disposable database and perform the smoke workflow before switching traffic.
 
 See [deployment preparation](DEPLOYMENT.md) for the supplied container configuration. Deployment instructions do not themselves create a public service. The Render Blueprint is configured separately through your account.
+
+
+## Clear business records while preserving the shop
+
+The owner can open **Shop & staff** (phone: **More**) → **Delete business data**, enter the current owner password, and type `DELETE SHOP DATA`. This clears customers/suppliers, estimates and their images, purchases, payments, allocations, opening balances, corrections, reconciliation entries and prior transaction audit history. Shop settings and every user account/password/role remain. Sessions are revoked on all devices; sign in again with the same credentials. One security audit event records that the reset occurred, without retaining original financial rows.
+
+The financial deletion is transactional, including its MongoDB revision commit; failure does not intentionally leave a partially emptied book. Previously downloaded/off-server backups and Atlas `restore_safety` copies are not deleted by this operation. Do not restore an old backup unless you intend to bring those records back. A local workspace reset does not reset a live Render/Atlas deployment: perform the reset through the live app using its authenticated owner account.

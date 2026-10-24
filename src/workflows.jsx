@@ -791,3 +791,81 @@ export function BankFields({ details, t }) {
     </>
   );
 }
+
+export function ResetShopForm({ t, onReset }) {
+  const [password, setPassword] = useState(""),
+    [confirmation, setConfirmation] = useState(""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  return (
+    <details className="reset-shop">
+      <summary>
+        {t("Delete business data", "दुकान के लेन-देन का डेटा मिटाएँ")}
+      </summary>
+      <p>
+        {t(
+          "Deletes all customers/suppliers, estimates/photos, purchases, payments, opening balances, corrections and transaction history. Shop details and user accounts stay. All devices will be signed out.",
+          "सभी ग्राहक/सप्लायर, अनुमान/फोटो, खरीद, भुगतान, शुरुआती बकाया, सुधार और लेन-देन का इतिहास मिटेगा। दुकान का विवरण और यूज़र खाते रहेंगे। सभी फोन से साइन आउट होगा।",
+        )}
+      </p>
+      <p>
+        {t(
+          "Previously downloaded backups and retained restore-safety backups are not erased.",
+          "पहले डाउनलोड किए गए बैकअप और सुरक्षित रखे पुराने बैकअप नहीं मिटेंगे।",
+        )}
+      </p>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          setBusy(true);
+          setError("");
+          try {
+            await api("shop/reset-data", {
+              current_password: password,
+              confirmation,
+            });
+            sessionStorage.clear();
+            onReset();
+          } catch (error) {
+            setError(error.message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        <label>
+          {t("Current owner password", "मालिक का वर्तमान पासवर्ड")}
+          <input
+            type="password"
+            required
+            value={password}
+            autoComplete="current-password"
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+        <label>
+          {t("Type DELETE SHOP DATA", "DELETE SHOP DATA लिखें")}
+          <input
+            required
+            value={confirmation}
+            autoComplete="off"
+            onChange={(e) => setConfirmation(e.target.value)}
+          />
+        </label>
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <button
+          className="primary"
+          disabled={busy || confirmation !== "DELETE SHOP DATA"}
+        >
+          {busy
+            ? t("Deleting…", "मिटा रहे हैं…")
+            : t("Delete all business records", "सभी लेन-देन के रिकॉर्ड मिटाएँ")}
+        </button>
+      </form>
+    </details>
+  );
+}

@@ -72,6 +72,7 @@ try {
       "server/estimate-ai.test.js",
       "server/reports.test.js",
       "server/quick-estimate.test.js",
+      "server/reset-shop.test.js",
       "server/lifecycle.test.js",
       "server/mongo.test.js",
       "server/durable-api.test.js",

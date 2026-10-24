@@ -1732,3 +1732,8 @@ input[type="checkbox"] {
 .reports .secondary { text-decoration:none; display:inline-flex; align-items:center; justify-content:center; }
 .period-statement summary { font-size:17px; cursor:pointer; padding:12px; color:#23442a; background:#edf4e9; }
 @media(max-width:480px){ .report-filter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .report-filters {padding:10px;} .report-metrics {grid-template-columns:repeat(2,minmax(0,1fr));} .report-metrics strong {font-size:18px;} .report-tabs {gap:5px;} .reports .pagination {flex-wrap:wrap;} }
+.reset-shop { border: 1px solid #bb5145; border-radius: 8px; padding: 14px; }
+.reset-shop summary { color: #9d332c; font-weight: 600; cursor: pointer; }
+.reset-shop p { line-height: 1.6; }
+.reset-shop form { display: grid; gap: 14px; }
+.reset-shop .primary { background: #9d332c; }

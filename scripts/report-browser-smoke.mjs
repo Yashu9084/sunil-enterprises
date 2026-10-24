@@ -111,6 +111,21 @@ try {
     ),
     true,
   );
+  await page.locator(".mobile-nav").getByRole("button", { name: "More" }).click();
+  await page.locator(".reset-shop summary").click();
+  await page.getByLabel("Current owner password", { exact: true }).fill("long-enough-password");
+  await page.getByLabel("Type DELETE SHOP DATA", { exact: true }).fill("DELETE SHOP DATA");
+  await page.getByRole("button", { name: "Delete all business records", exact: true }).click();
+  await page.getByRole("heading", { name: "Welcome back" }).waitFor();
+  await page.getByLabel("Username", { exact: true }).fill("owner");
+  await page.getByLabel("Password", { exact: true }).fill("long-enough-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByRole("heading", { name: "A clear view of your shop." }).waitFor();
+  const cleared = await (await page.request.get(service.base + "/api/state")).json();
+  assert.equal(cleared.parties.length, 0);
+  assert.equal(cleared.documents.length, 0);
+  assert.equal(cleared.payments.length, 0);
+  assert.equal(cleared.user.name, "Report owner");
   assert.deepEqual(errors, []);
   console.log(
     "Quick/report browser passed: photo + total without items or AI, saved proof, entry filters, full CSV/PDF exports, opening/closing statement and phone layout.",
